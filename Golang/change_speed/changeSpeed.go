@@ -1,25 +1,40 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 )
 
-const outDir = "out"
-const speedFactor = 2
-
 var (
 	totalCount     int
 	remainingCount int
+	speedFactor    float64
+	outDir         string
 )
 
 func main() {
+	// 提示用户输入倍速参数
+	reader := bufio.NewReader(os.Stdin)
+	fmt.Print("请输入倍速参数（例如 2.5）: ")
+	speedInput, _ := reader.ReadString('\n')
+	speedInput = strings.TrimSpace(speedInput) // 去除可能的空格和换行符
 
+	// 将输入字符串转换为浮点数
+	_speedFactor, err := strconv.ParseFloat(speedInput, 64)
+	speedFactor = _speedFactor
+	if err != nil {
+		fmt.Println("输入无效，请输入一个数字。")
+		return
+	}
+	// 根据倍速设置输出文件夹的名称
+	outDir = fmt.Sprintf("%vX", speedFactor)
 	// 获取输入目录
 	exePath, _ := os.Executable()
 	inputDir := filepath.Dir(exePath)
@@ -72,7 +87,7 @@ func processFile(filePath string) {
 	remainingCount--
 
 	// ffmpeg处理
-	outDir := filepath.Join(filepath.Dir(filePath), "out")
+	outDir := filepath.Join(filepath.Dir(filePath), outDir)
 	err := os.MkdirAll(outDir, 0755)
 	if err != nil {
 		return
