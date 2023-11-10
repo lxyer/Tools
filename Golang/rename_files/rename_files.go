@@ -33,6 +33,5 @@ func main() {
 			return
 		}
 	}
-
 	fmt.Println("去除前缀完成!")
 }
