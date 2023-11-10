@@ -6,10 +6,12 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
 const outDir = "out"
+const speedFactor = 2
 
 var (
 	totalCount     int
@@ -49,6 +51,11 @@ func main() {
 }
 
 func processFile(filePath string) {
+	// 检查文件是否在out目录中
+	if strings.Contains(filePath, "/out/") || strings.Contains(filePath, "\\out\\") {
+		log.Printf("跳过out目录中的文件: %s", filePath)
+		return
+	}
 	startTime := time.Now()
 	// 判断out文件是否存在,存在就删除
 	outFileName := filepath.Base(filePath)
@@ -57,14 +64,12 @@ func processFile(filePath string) {
 	// 日志打印文件名
 	fileName := filepath.Base(filePath)
 
-	if !isMediaFile(filePath) {
+	if isMediaFile(filePath) == 0 {
 		log.Printf("跳过非媒体文件: %s", fileName)
 		return
 	}
 
 	remainingCount--
-
-	log.Printf("开始处理文件: %s", fileName)
 
 	// ffmpeg处理
 	outDir := filepath.Join(filepath.Dir(filePath), "out")
@@ -82,9 +87,16 @@ func processFile(filePath string) {
 		}
 		log.Printf("删除已存在临时文件: %s", outFileName)
 	}
-
-	cmd := exec.Command("ffmpeg", "-i", filePath, "-filter:a", "atempo=2.5", outPath)
-	err = cmd.Run()
+	if isMediaFile(filePath) == 1 {
+		log.Printf("处理音频文件: %s", fileName)
+		cmd := exec.Command("ffmpeg", "-i", filePath, "-filter:a", fmt.Sprintf("atempo=%v", speedFactor), outPath)
+		err = cmd.Run()
+	}
+	if isMediaFile(filePath) == 2 {
+		log.Printf("处理视频文件: %s", fileName)
+		cmd := exec.Command("ffmpeg", "-i", filePath, "-filter_complex", fmt.Sprintf("[0:v]setpts=PTS/%[1]v[v];[0:a]atempo=%[1]v[a]", speedFactor), "-map", "[v]", "-map", "[a]", outPath)
+		err = cmd.Run()
+	}
 	if err != nil {
 		log.Printf("处理文件错误: %s", err)
 		remainingCount++
@@ -137,7 +149,7 @@ func processFile(filePath string) {
 }
 
 // 判断是否媒体文件
-func isMediaFile(path string) bool {
+func isMediaFile(path string) int8 {
 
 	ext := filepath.Ext(path)
 
@@ -148,14 +160,14 @@ func isMediaFile(path string) bool {
 		".ape", ".aiff", ".wma", ".amr", ".m4a"}
 
 	if contains(videoExts, ext) {
-		return true
+		return 2
 	}
 
 	if contains(audioExts, ext) {
-		return true
+		return 1
 	}
 
-	return false
+	return 0
 
 }
 
